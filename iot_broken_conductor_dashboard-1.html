@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IoT Broken Conductor Detection Dashboard</title>
+<style>
+  :root {
+    --navy:#10243a; --blue:#1769aa; --cyan:#20b8c7; --bg:#f3f7fb;
+    --card:#ffffff; --text:#203247; --muted:#6b7c90; --green:#15966b;
+    --amber:#d98a16; --red:#d64545; --line:#e3ebf2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+  header{background:linear-gradient(115deg,var(--navy),#174e79);color:white;padding:26px 5%;display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap}
+  header h1{font-size:clamp(21px,3vw,30px);margin:0 0 7px}
+  header p{margin:0;color:#d5e8f5;font-size:14px;line-height:1.5}
+  .tag{border:1px solid #80b6d5;border-radius:30px;padding:9px 14px;font-size:12px;white-space:nowrap}
+  main{max-width:1150px;margin:26px auto;padding:0 18px}
+  .section-title{font-size:18px;margin:26px 0 14px}
+  .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 4px 14px rgba(22,55,83,.05)}
+  .metric-label{color:var(--muted);font-size:13px;margin-bottom:12px}
+  .metric{font-size:29px;font-weight:700;letter-spacing:-.5px}
+  .unit{font-size:14px;color:var(--muted);font-weight:500}
+  .small{font-size:12px;color:var(--muted);margin-top:8px}
+  .status-row{display:flex;align-items:center;gap:10px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px #e2f5ed}
+  .status{font-weight:700;color:var(--green)}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{border:0;border-radius:9px;padding:11px 16px;background:var(--blue);color:white;font-weight:700;cursor:pointer}
+  button:hover{filter:brightness(.93)}
+  button.secondary{background:#e8f1f8;color:var(--blue);border:1px solid #cbddea}
+  button.danger{background:var(--red)}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .chart-wrap{height:230px;position:relative}
+  canvas{width:100%;height:100%;display:block}
+  .alert{border-left:5px solid var(--green);background:#f0fbf6;padding:14px 16px;border-radius:9px;line-height:1.5}
+  .alert.warning{border-left-color:var(--amber);background:#fff8eb}
+  .alert.critical{border-left-color:var(--red);background:#fff1f1}
+  .alert strong{display:block;margin-bottom:4px}
+  .table{width:100%;border-collapse:collapse;font-size:14px}
+  .table th,.table td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line)}
+  .table th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase}
+  .pill{display:inline-block;padding:5px 9px;border-radius:20px;background:#e5f7ef;color:#11734f;font-size:12px;font-weight:700}
+  .pill.warn{background:#fff1d9;color:#94600b}.pill.crit{background:#ffe5e5;color:#a72f2f}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:28px 15px}
+  .note{font-size:13px;color:var(--muted);line-height:1.6}
+  @media(max-width:800px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:480px){.grid{grid-template-columns:1fr}header{padding:22px 18px}.metric{font-size:25px}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>IoT-Based Broken Conductor Detection</h1>
+    <p>Alert System for Low-Voltage Distribution Networks</p>
+  </div>
+  <div class="tag">DEMO DASHBOARD · TEAM 5</div>
+</header>
+
+<main>
+  <div class="panel-head">
+    <div>
+      <div class="section-title" style="margin:0 0 5px">Network Monitoring Overview</div>
+      <div class="small">Illustrative sensor values for project demonstration</div>
+    </div>
+    <div class="toolbar">
+      <button class="secondary" id="normalBtn">Normal mode</button>
+      <button class="danger" id="faultBtn">Simulate fault</button>
+    </div>
+  </div>
+
+  <section class="grid" aria-label="Sensor readings">
+    <div class="card"><div class="metric-label">Voltage</div><div class="metric"><span id="voltage">230</span> <span class="unit">V</span></div><div class="small">Illustrative line voltage</div></div>
+    <div class="card"><div class="metric-label">Current</div><div class="metric"><span id="current">4.8</span> <span class="unit">A</span></div><div class="small">Illustrative load current</div></div>
+    <div class="card"><div class="metric-label">Detection status</div><div class="status-row"><span class="dot" id="statusDot"></span><span class="status" id="statusText">Normal</span></div><div class="small" id="statusSub">No simulated fault detected</div></div>
+    <div class="card"><div class="metric-label">Risk score</div><div class="metric"><span id="risk">08</span><span class="unit"> / 100</span></div><div class="small">Demonstration indicator only</div></div>
+  </section>
+
+  <h2 class="section-title">Sensor Reading Over Time</h2>
+  <section class="card">
+    <div class="panel-head"><strong>Voltage trend</strong><span class="small">Last 12 sample points</span></div>
+    <div class="chart-wrap"><canvas id="chart" aria-label="Voltage trend chart"></canvas></div>
+  </section>
+
+  <h2 class="section-title">System Alert</h2>
+  <section class="card">
+    <div class="alert" id="alertBox" role="status">
+      <strong id="alertTitle">System operating normally</strong>
+      <span id="alertMessage">The demonstration dashboard is showing normal sample readings.</span>
+    </div>
+  </section>
+
+  <h2 class="section-title">Recent Event Log</h2>
+  <section class="card">
+    <table class="table">
+      <thead><tr><th>Time</th><th>Event</th><th>Voltage</th><th>Status</th></tr></thead>
+      <tbody id="eventRows">
+        <tr><td>09:40:00</td><td>System started</td><td>230 V</td><td><span class="pill">Normal</span></td></tr>
+        <tr><td>09:41:00</td><td>Sensor reading received</td><td>230 V</td><td><span class="pill">Normal</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <h2 class="section-title">About This Demonstration</h2>
+  <section class="card note">
+    This web page is a front-end demonstration for an IoT-based broken conductor detection and alert system.
+    The buttons change sample values locally in the browser; they do not connect to real sensors, electrical
+    equipment, or an alert service. Actual electrical fault detection and response must be designed, tested,
+    and handled by qualified professionals using suitable certified equipment.
+  </section>
+</main>
+<footer>IoT Broken Conductor Detection &amp; Alert System · Academic Project Dashboard</footer>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let fault = false;
+  let values = Array(12).fill(230);
+  function drawChart(){
+    const canvas = $("chart"), rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(300, rect.width*dpr);
+    canvas.height = Math.max(150, rect.height*dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr,dpr);
+    const w=rect.width,h=rect.height,pad=30;
+    ctx.clearRect(0,0,w,h);
+    ctx.font="11px Arial"; ctx.fillStyle="#718096"; ctx.strokeStyle="#e6edf3"; ctx.lineWidth=1;
+    [210,220,230,240].forEach(v=>{
+      const y=h-pad-(v-205)/40*(h-2*pad);
+      ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(w-8,y);ctx.stroke();
+      ctx.fillText(v+" V",2,y+4);
+    });
+    const pts=values.map((v,i)=>({x:pad+i*(w-pad-12)/(values.length-1),y:h-pad-(v-205)/40*(h-2*pad)}));
+    ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+    ctx.strokeStyle=fault?"#d64545":"#1769aa";ctx.lineWidth=3;ctx.stroke();
+    pts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fillStyle=fault?"#d64545":"#20b8c7";ctx.fill()});
+  }
+  function addEvent(event, voltage, status){
+    const row=document.createElement("tr");
+    const time=new Date().toLocaleTimeString();
+    row.innerHTML=`<td>${time}</td><td>${event}</td><td>${voltage} V</td><td><span class="pill ${fault?'crit':''}">${status}</span></td>`;
+    $("eventRows").prepend(row);
+    while($("eventRows").children.length>6) $("eventRows").lastElementChild.remove();
+  }
+  function setNormal(){
+    fault=false; $("voltage").textContent="230";$("current").textContent="4.8";$("risk").textContent="08";
+    $("statusText").textContent="Normal";$("statusText").style.color="var(--green)";
+    $("statusDot").style.background="var(--green)";$("statusDot").style.boxShadow="0 0 0 4px #e2f5ed";
+    $("statusSub").textContent="No simulated fault detected";
+    $("alertBox").className="alert";$("alertTitle").textContent="System operating normally";
+    $("alertMessage").textContent="The demonstration dashboard is showing normal sample readings.";
+    values=Array.from({length:12},(_,i)=>229+(i%3));
+    drawChart();addEvent("Normal sample reading","230","Normal");
+  }
+  function setFault(){
+    fault=true;$("voltage").textContent="0";$("current").textContent="0";$("risk").textContent="92";
+    $("statusText").textContent="Fault simulated";$("statusText").style.color="var(--red)";
+    $("statusDot").style.background="var(--red)";$("statusDot").style.boxShadow="0 0 0 4px #ffe5e5";
+    $("statusSub").textContent="Demo fault state activated";
+    $("alertBox").className="alert critical";$("alertTitle").textContent=" DEMONSTRATION ALERT: Possible conductor fault";
+    $("alertMessage").textContent="A simulated abnormal condition is displayed. This is not a real electrical warning.";
+    values=[230,231,230,229,230,228,230,227,225,218,210,205];
+    drawChart();addEvent("Simulated abnormal condition","0","Demo alert");
+  }
+  $("normalBtn").addEventListener("click",setNormal);
+  $("faultBtn").addEventListener("click",setFault);
+  window.addEventListener("resize",drawChart);
+  drawChart();
+</script>
+</body>
+</html>
